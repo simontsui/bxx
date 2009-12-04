@@ -1,0 +1,50 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+<title>BXX</title>
+<link rel="stylesheet" href="notes.css" type="text/css">
+</head>
+<body>
+<table class="top" cellspacing="0" align="center" summary="top">
+    <tr><td class="ruler"></td></tr>
+    <tr><td class="title">BXX</td></tr>
+    <tr><td class="ruler"></td></tr>
+    <tr>
+    <td>
+        <h1>Introduction</h1>
+        <p>
+            <span class="term">BXX</span> specifies and implements a binary data formats for structured hierarchical,
+            <code>XML</code> like, data. The initial driver for the project is to serialize internal data structure of
+            an application for fast startup. <span class="term">BXD</span> is name of the binary date format. It is
+            designed to has structure very similar to XML. It use tags and attributes to store data. It is a design
+            goal to allow loss-less conversion to and from XML. However, the goal is not to replace XML. While XML is
+            good for textual data, BXD is designed for binary data. The binary format allow non-textual data to be
+            processed more efficiently. A number of basic data types allow value to be written and read efficiently
+            without having to convert everything to and from string. Attribute and text value can be stored by value,
+            or by reference to string (<code>UTF-8</code>) and blob (<code>byte[]</code>). All tag and attribute names
+            are interned to allow efficient storage and processing.
+        </p>
+        <h1>Documentation</h1>
+        <ul>
+            <!-- <li><a href="bxd1.html">BXD1</a> - Binary data file format.</li> -->
+            <li><a href="bxd2.html">BXD</a> - Binary data file format v2.</li>
+            <li><a href="builtins.html">Builtins</a> - Builtins and predefined types and values</li>
+        </ul>
+        <h1>License</h1>
+        <ul>
+            <li>This project is released under <a href="licenses/COPYING">GPL v2</a> with the <a
+            href="licenses/CLASSPATH.txt">CLASSPATH</a> exception.</li>
+        </ul>
+        <h1>Release</h1>
+        <ul>
+            <li>v0.2 (11/2009)</li>
+        </ul>
+        <p>
+            <i><em>Disclaimer</em>: This project is released in hope that it would be useful, but no guarantee,
+            warranty or support should be expected. Use it at your own risk.</i>
+        </p>
+    </td>
+    </tr>
+</table>
+</body>
+</html>

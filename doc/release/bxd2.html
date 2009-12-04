@@ -1,0 +1,509 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+<title>BXD</title>
+<link rel="stylesheet" href="notes.css" type="text/css">
+</head>
+<body>
+<table class="top" cellspacing="0" align="center" summary="top">
+    <tr><td class="ruler"></td></tr>
+    <tr><td class="title">BXD v2.0</td></tr>
+    <tr><td class="navbar-top"><b>| <a href="index.html">Up</a>&nbsp;</b></td></tr>
+    <tr><td class="ruler"></td></tr>
+    <tr>
+    <td>
+        <h1>BXD v2.0 file format</h1>
+        <h3>Changes from v1.0</h3>
+        <ul>
+            <li>Version 2.0 is not compatible with v.10. The goal is to simplify the structure, eliminating some rarely
+            used or overly complicated features.</li>
+            <li>There are now only 32 system tags as defined in <a href="#SystemTags">predefined system tags</a>.
+            System tags now use negative numbers instead of the reserved positive range.</li>
+            <li>Eliminated fixed length value encoding.</li>
+            <li>Eliminated XmlFragment, target and raw xml content for doctype, declaration and PI are now encoded as
+            attributes.</li>
+            <li>Serialize pools in lighter form, <a href="#StringDef">StringDef</a> and <a href="#BlobDef">BlobDef</a>
+            nodes.</li>
+            <!--
+                <li>Encoding of <a href="builtins.html#U60">U60</a> length bits has changed to be more consistent with
+                other length bit encodings.</li>
+            -->
+        </ul>
+
+        <h1><a name="SystemTags"></a>Predefined system tags</h1>
+        <ul>
+            <li>Each <span class="term">tagId</span> is a <code>V32</code> value. System tag id are negative and user
+            tag id are positive. TagId <code>0x00</code> is invalid and should never be used as a tag. Each user tag is
+            also a <span class="term">stringId</span>, which reference the tag name in the string pool. System tag are
+            not <code>stringId</code> and not a reference into the string pool. System tags are predefined as follows: 
+            <table class="box">
+                <tr>
+                <th>Tag ID (V32 encoded)</th>
+                <th>Tag name</th>
+                <th>Extra data</th>
+                <th>Description</th>
+                </tr>
+                <tr class="light">
+                <td class="mono">0 (0x00)</td>
+                <td>&lt;invalid></td>
+                <td>-</td>
+                <td>Invalid tag. Should never be used as tag.</td>
+                </tr>
+                <tr>
+                <td class="mono">0xffffff_ff (0xfe)</td>
+                <td>&lt;Extension></td>
+                <td>
+                    <ul class="noindent">
+                        <li class="none"><a href="builtins#I8">I8</a>&nbsp;ExtId</li>
+                        <li class="none"><a href="builtins.html#Blob">Blob</a></li>
+                    </ul>
+                </td>
+                <td>Extension node</td>
+                </tr>
+                <tr class="light">
+                <td class="mono">0xffffff_fe (0xfc)</td>
+                <td>&lt;Trailer></td>
+                <td>(See <a href="bxd2.html#Trailer">Trailer</a>)</td>
+                <td></td>
+                </tr>
+                <tr>
+                <td class="mono">0xffffff_fd (0xfa)</td>
+                <td>&lt;Doctype></td>
+                <td>
+                    <ul class="noindent">
+                        <li class="none"><a href="builtins#U31">U31</a>&nbsp;stringId</li>
+                        <li class="none">(<a href="bxd2.html#Attribute">Attribute</a>)*</li>
+                        <li class="none">EndTag</li>
+                    </ul>
+                </td>
+                <td></td>
+                </tr>
+                <tr class="light">
+                <td class="mono">0xffffff_fc (0xf8)</td>
+                <td>&lt;Declaration></td>
+                <td>
+                    <ul class="noindent">
+                        <li class="none"><a href="builtins#U31">U31</a>&nbsp;stringId</li>
+                        <li class="none">(<a href="bxd2.html#Attribute">Attribute</a>)*</li>
+                        <li class="none">EndTag</li>
+                    </ul>
+                </td>
+                <td></td>
+                </tr>
+                <tr>
+                <td class="mono">0xffffff_fb (0xf6)</td>
+                <td>&lt;PI></td>
+                <td>
+                    <ul class="noindent">
+                        <li class="none"><a href="builtins#U31">U31</a>&nbsp;stringId</li>
+                        <li class="none">(<a href="bxd2.html#Attribute">Attribute</a>)*</li>
+                        <li class="none">EndTag</li>
+                    </ul>
+                </td>
+                <td></td>
+                </tr>
+                <tr class="light">
+                <td class="mono">0xffffff_fa (0xf4)</td>
+                <td>&lt;Comment></td>
+                <td><a href="#Value">Value</a>&nbsp;text</td>
+                <td>Value data. No attributes, no EndTag allowed.</td>
+                </tr>
+                <tr>
+                <td class="mono">0xffffff_f9 (0xf2)</td>
+                <td>&lt;CDATA></td>
+                <td><a href="#Value">Value</a>&nbsp;text</td>
+                <td>Value data. No attributes, no EndTag allowed.</td>
+                </tr>
+                <tr class="light">
+                <td class="mono">0xffffff_f8 (0xf0)</td>
+                <td>&lt;0xf8></td>
+                <td>-</td>
+                <td>&lt;reserved></td>
+                </tr>
+                <tr>
+                <td class="mono">0xffffff_f7 (0xee)</td>
+                <td>&lt;EndAttr></td>
+                <td>-</td>
+                <td>Empty element should end with EndTag directly instead.</td>
+                </tr>
+                <tr class="light">
+                <td class="mono">0xffffff_f6 (0xec)</td>
+                <td>&lt;EndTag></td>
+                <td>-</td>
+                <td></td>
+                </tr>
+                <tr>
+                <td class="mono">0xffffff_f5 (0xea)</td>
+                <td><a name="BlobDef"></a>&lt;BlobDef></td>
+                <td>
+                    <ul class="noindent">
+                        <li class="none"><a href="builtins#U31">U31</a> blobId</li>
+                        <li class="none"><a href="builtins.html#Blob">Blob</a></li>
+                    </ul>
+                </td>
+                <td>Blob definition</td>
+                </tr>
+                <tr class="light">
+                <td class="mono">0xffffff_f4 (0xe8)</td>
+                <td><a name="StringDef"></a>&lt;StringDef></td>
+                <td>
+                    <ul class="noindent">
+                        <li class="none"><a href="builtins#U31">U31</a> stringId</li>
+                        <li class="none"><a href="builtins.html#String">String</a></li>
+                    </ul>
+                </td>
+                <td>String definition</td>
+                </tr>
+                <tr>
+                <td class="mono">0xffffff_f3 (0xe6)</td>
+                <td>&lt;BlobRef></td>
+                <td><a href="builtins#U31">U31</a>&nbsp;blobId</td>
+                <td>Blob pool reference.</td>
+                </tr>
+                <tr class="light">
+                <td class="mono">0xffffff_f2 (0xe4)</td>
+                <td>&lt;StringRef></td>
+                <td><a href="builtins#U31">U31</a> stringId</td>
+                <td>UTF-8 string pool reference.</td>
+                </tr>
+                <tr>
+                <td class="mono">0xffffff_f1 (0xe2)</td>
+                <td>&lt;Blob></td>
+                <td><a href="builtins.html#Blob">Blob</a></td>
+                <td>byte[] data.</td>
+                </tr>
+                <tr class="light">
+                <td class="mono">0xffffff_f0 (0xe0)</td>
+                <td>&lt;String></td>
+                <td><a href="builtins.html#String">String</a></td>
+                <td>UTF-8 string</td>
+                </tr>
+                <tr>
+                <td class="mono">0xffffff_ef (0xde)</td>
+                <td>&lt;char></td>
+                <td>
+                    <ul class="noindent">
+                        <li class="none"><a href="builtins.html#U31">U31</a></li>
+                    </ul>
+                </td>
+                <td>Unicode character value.</td>
+                </tr>
+                <tr class="light">
+                <td class="mono">0xffffff_ee (0xdc)</td>
+                <td>&lt;double></td>
+                <td><a href="builtins.html#V64">V64</a></td>
+                <td>Double value as generated from Java Double.doubleToLongBits().</td>
+                </tr>
+                <tr>
+                <td class="mono">0xffffff_ed (0xda)</td>
+                <td>&lt;float></td>
+                <td><a href="builtins.html#V32">V32</a></td>
+                <td>Float value as generated from Java Float.floatToIntBits().</td>
+                </tr>
+                <tr class="light">
+                <td class="mono">0xffffff_ec (0xd8)</td>
+                <td>&lt;BigInt></td>
+                <td><a href="builtins.html#Blob">Blob</a></td>
+                <td>Signed integer of arbitrary length as generated from Java BigInteger.toByteArray().</td>
+                </tr>
+                <tr>
+                <td class="mono">0xffffff_eb (0xd6)</td>
+                <td>&lt;long></td>
+                <td><a href="builtins.html#V64">V64</a></td>
+                <td></td>
+                </tr>
+                <tr class="light">
+                <td class="mono">0xffffff_ea (0xd4)</td>
+                <td>&lt;int></td>
+                <td><a href="builtins.html#V32">V32</a></td>
+                <td></td>
+                </tr>
+                <tr>
+                <td class="mono">0xffffff_e9 (0xd2)</td>
+                <td>&lt;short></td>
+                <td><a href="builtins.html#V32">V32</a></td>
+                <td></td>
+                </tr>
+                <tr class="light">
+                <td class="mono">0xffffff_e8 (0xd0)</td>
+                <td>&lt;byte></td>
+                <td><a href="builtins#I8">I8</a></td>
+                <td></td>
+                </tr>
+                <tr>
+                <td class="mono">0xffffff_e7 (0xce)</td>
+                <td>&lt;ulong></td>
+                <td><a href="builtins.html#U64">U64</a></td>
+                <td></td>
+                </tr>
+                <tr class="light">
+                <td class="mono">0xffffff_e6 (0xcc)</td>
+                <td>&lt;uint></td>
+                <td><a href="builtins.html#U32">U32</a></td>
+                <td></td>
+                </tr>
+                <tr>
+                <td class="mono">0xffffff_e5 (0xca)</td>
+                <td>&lt;ushort></td>
+                <td><a href="builtins.html#U32">U32</a></td>
+                <td></td>
+                </tr>
+                <tr class="light">
+                <td class="mono">0xffffff_e4 (0xc8)</td>
+                <td>&lt;ubyte></td>
+                <td><a href="builtins#U8">U8</a></td>
+                <td></td>
+                </tr>
+                <tr>
+                <td class="mono">0xffffff_e3 (0xc6)</td>
+                <td>&lt;true></td>
+                <td>-</td>
+                <td></td>
+                </tr>
+                <tr class="light">
+                <td class="mono">0xffffff_e2 (0xc4)</td>
+                <td>&lt;false></td>
+                <td>-</td>
+                <td></td>
+                </tr>
+                <tr>
+                <td class="mono">0xffffff_e1 (0xc2)</td>
+                <td>&lt;array></td>
+                <td>
+                    <ul class="noindent">
+                        <li class="none"><a href="#Array">Array</a></li>
+                    </ul>
+                </td>
+                <td>Array of built-in type. <b class="red">Not yet implemented</b>.</td>
+                </tr>
+                <tr>
+                <td class="mono">0xffffff_e0 (0xc0)</td>
+                <td>&lt;absent></td>
+                <td>-</td>
+                <td>Value (eg. attribute value) not specified.</td>
+                </tr>
+            </table>
+            </li>
+        </ul>
+        <h1>File format description</h1>
+<pre>
+<b>BXD</b> {
+    <b>Header</b>
+    (<b>Node</b> | <b>StringDef</b> | <b>BlobDef</b>)*
+    <b>Trailer</b>
+}
+<a name="Header"></a><b>Header</b> {
+    I8 magic[4] = { 0x0b, 'b', 'x', 'd'}
+    I16 major = 0x0002
+    I16 minor = 0x0000
+    I64 flags
+    I8 reserved[16]
+}
+<a name="Trailer"></a><b>Trailer</b> {
+    V32 tagId = Trailer
+    (<b>Signature</b>)+
+}
+<a name="Signature"></a><b>Signature</b> {
+    U31 kind
+    (&lt;String> | &lt;Blob>)?
+}
+<a name="Node"></a><b>Node</b> {
+    V32 tagId
+    (<b>Attribute</b>)*
+    (
+    	V32 endAttr = EndAttr
+        (<b>Node</b>)*
+    )?
+    V32 endTag = EndTag
+}
+<a name="Attribute"></a><b>Attribute</b> {
+    V32 tagId
+    <b>Value</b>
+}
+<a name="Value"></a><b>Value</b> {
+    V32 tagId
+    (data)?
+}
+<b>String</b> {
+    U31 count
+    (I8 utf8)*
+}
+<b>Blob</b> {
+    U31 count
+    (I8 data)*
+}
+<a name="Array"></a><b>Array</b> {
+    V32 type
+    U31 count
+    (I8 data)*
+}
+</pre>
+        <ul>
+            <li>All values are serialized in <code>big-endian</code> (network) order.</li>
+            <li>The top level file format is simple, a <a href="#Header">Header</a> followed by a number of variable
+            sized system or user nodes and then finally a <a href="#Trailer">Trailer</a>. While the organization of the
+            user blocks should always resemble XML, there may be out of stream system blocks inter-mixed in the
+            stream.</li>
+            <li><a href="#Header"><span class="term">Header</span></a> contains a <code>magic</code>, the <code
+            >major</code> and <code>minor</code> version numbers and <code>64</code> bit <code>flags</code>. See <a
+            href="#HeaderFlags">header flags table</a> below for details. The header is padded to <code>32</code> bytes
+            long with <code>0</code> to make sure it is treated as binary file.</li>
+            <li><a href="#Trailer"><span class="term">Trailer</span></a> is always located at end of the data stream.
+            It contains optional <code>signature</code> blocks for the data stream.</li>
+            <li>Each <a href="#Signature"><span class="term">signature</span></a> checksum data up to the byte before
+            the signature, ie. including the signature blocks before it. There is always a terminating signature block
+            of kind <code>0x00</code> that has no value. Other than the terminating signature block, each signature
+            block must has a <a href="#Value"><span class="term">Value</span></a> which must be either a <code
+            >String</code> or a <code>Blob</code> value. As of <code>v0.2</code>, signature verification is <b
+            class="red">not yet implemented</b>.</li>
+            <li>Tag <code>0x00</code> is reserved as invalid and should never appears as tag in the data stream.</li>
+            <li>User <a href="#Node"><span class="term">Node</span></a> consists of a <code>start tag</code>, optional
+            <code>attributes</code> and <code>EndAttr</code>, optional child nodes and must end with an <code
+            >EndTag</code>. If a user node has children, it must use <code>EndAttr</code> to indicate end of the
+            attributes just before the children. Empty node, ie. without child node, end the attributes with an <code
+            >EndTag</code> directly without an <code>EndAttr</code>. Anything that follows a start tag is considered as
+            attributes until either <code>EndAttr</code> or <code>EndTag</code> is found. All nodes after <code
+            >EndAttr</code> are child nodes until a matching <code>EndTag</code> is found. System nodes has predefined
+            format as specified in the <a href="#SystemTags">predefined system tags</a> table, and may not require
+            <code>EndAttr</code> or <code>EndTag</code>.</li>
+            <li><span class="term">Attribute</span> always has a <code>name</code> tag and a <code>value</code> tag.
+            Attribute name is also a <code>stringId</code> that reference the attribute name in the string pool. Name
+            only attribute has <code>absent</code> as attribute value.</li>
+            <li>Any <span class="term">built-in data types</span> can be used as content in the <span class="term"
+            >attribute value</span> and <span class="term">text</span> contexts. The value need not and should not be
+            quoted or escaped. It is the responsibility of the writer to unescape any XML escapes before writing. Note
+            that there is no <code>tagId</code> for the <code>Text</code> nodes. Each value in the text context is a
+            <code>Text</code> node. Multiple values can occurs in a single text context, which is a convenient way to
+            encode small arrays.</li>
+            <li>For efficient storage of arrays, use an <a href="#Array"><span class="term">Array</span></a> node. Each
+            array node pack <code>count</code> number of elements with the specified <code>type</code> in sequential
+            order. The first element is element <code>0</code>. Valid values for <code>type</code> are the simple
+            built-in types from <code>false</code>..<code>BlobRef</code>. For <code>ubyte</code>..<code>BlobRef</code>,
+            each element use the same encoding as for the built-in type, without the built-in type tag. For boolean
+            array, <code>false</code>..<code>true</code>, elements are bits padded at the end to byte boundary. The
+            special <code>null</code> encoding for <code>count</code> is used to indicate a <code>null</code> array
+            (note: not an array of <code>null</code>). An array node can also be used as <code>attribute value</code>
+            and <code>text</code> value, just like the built-in data types. Nested array is currently not supported. As
+            of <code>v.0.2</code>, <code>Array</code> node is <b class="red">not yet implemented</b>.</li>
+            <li>Tag <span class="term">&lt;absent></span> is used to indicate, for example, attribute value not
+            specified.</li>
+            <li><span class="term">Doctype</span>, <span class="term">PI</span>, <span class="term">Declaration</span>
+            may have arbitrary content in arbitary form. The start tag is always followed by a target name (a <code
+            >stringId</code>) which may be an empty string, eg. for <code>&lt;?php</code>, the <code>name</code> would
+            be <code>php</code>, for <code>Doctype</code>, <code>name</code> is the root element name. Remaining
+            content are serialized as attributes in order of appearance. Content in name/value pair, eg. <code
+            >version</code>, <code>encoding</code> and <code>standalone</code> attributes for <code
+            >XmlDeclaration</code>, are serialized in normal name/value attribute form. Content not in name/value form
+            are also serialized in normal name/value form, but with special attribute names that are prefix by <code
+            >'#'</code>, and a string value for the raw content. The special attribute names are ignored on
+            deserialization. The content can be reconstructed from the values in order of appearance. While the special
+            attribute names are ignored on deserialization, a few standard names are defined for content in known
+            format. <span class="term">#SYSTEM</span>, <span class="term">#PUBLIC</span>, <span class="term">#DTD</span
+            > for system identifier, public identifier and DTD in a <code>doctype</code> node. Note that the value
+            content includes the <code>SYSTEM</code>, <code>PUBLIC</code> literals and <code>[]</code> for the DTD, ...
+            etc. Content in unknown format typically use <span class="term">#DATA</span>, but can also use any other
+            name if required.</li>
+            <li><span class="term">Comment</span>, <span class="term">CDATA</span> and <span class="term">Text</span>
+            node has an immediate <span class="term">Value</span> of any built-in data type. No <code>EndAttr</code>
+            and/or <code>EndTag</code> is required. <code>Comment</code>, <code>CDATA</code> and <code>Text</code>
+            likes other nodes may occurs multiple times in sequence. It is up to the producer and consumer application
+            to decide if the adjacent nodes can be merged or not.</li>
+            <li><span class="term">StringDef</span> and <span class="term">BlobDef</span> nodes defines a string pool
+            and a blob pool. They are out of band metadata that may occurs just before a system or user tag. There may
+            be multiple <code>StringDef</code> or <code>BlobDef</code> before the system or user tag or they may not be
+            related to the tag at all. The first time a string or blob is encountered, the writer intern the data in
+            the string pool or blob pool and serialized the value as <code>StringDef</code> or <code>BlobDef</code>.
+            Later occurence of the data would be specified by the <code>StringRef</code> or <code>BlobRef</code> only.
+            Note that system tags are predefined and do not require a <code>StringDef</code>. User tags, attribute
+            names, ... etc. are always a <code>StringRef</code> and must be defined by a <code>StringDef</code> before
+            it.</li>
+            <li>The <span class="term">StringPool</span> do not include the system tag names. <code>StringId</code>
+            from <code>0</code> to <code>0x1f</code> are reserved. Hence the first <code>stringId</code> from the
+            string pool is <code>0x20</code> instead of <code>0</code>. It is the responsibility of the string pool to
+            ensure that it never returns a <code>StringId</code> in the range of the system tags. The first two entries
+            of the string pool must be <code>null</code> and <code>empty string</code> respectively. They are not
+            serialized to the <code>bxd</code> file.</li>
+            <li>The first two entries of the <span class="term">BlobPool</span> are always <code>null</code> and <code
+            >empty byte array</code>. They are not serialized to the <code>bxd</code> file.</li>
+            <li>To encode a <code>null</code> value for a <code>String</code>, <code>Blob</code>, <code>Array</code>, a
+            special <a href="builtins#U31"><code>U31</code></a> <a href="builtins#NullEncoding">encoding</a> is used as
+            the <code>count</code> field. It specify that the value is <code>null</code> and followed by no data. Note
+            that <code>StringRef</code> and <code>BlobRef</code> are never <code>null</code>, but they may points to a
+            <code>null</code> value in the pool.</li>
+            <li>Extension node allows for future extension with custom format. Each extension node is identified by a
+            secondary <code>Id</code>, if reader do not understand the extension, then it can bypass the node by
+            consuming the remaining content as a <code>Blob</code>.</li>
+            <li><a name="HeaderFlags"></a><span class="term">Header flags</span>:
+            <table class="box">
+                <tr>
+                <th>Bit</th>
+                <th>Name</th>
+                <th>Description</th>
+                </tr>
+                <tr>
+                <td>0</td>
+                <td>TagDict</td>
+                <td>All tag names are available from string pool before startDocument(), after readHeader().</td>
+                </tr>
+                <tr>
+                <td>1</td>
+                <td>AttrDict</td>
+                <td>
+                    All attribute names are available from string pool before startDocument(), after readHeader().
+                </td>
+                </tr>
+            </table>
+            </li>
+            <li>Supported <span class="term">signature kind</span>s:
+            <table class="box">
+                <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Value</th>
+                </tr>
+                <tr>
+                <td>0x00</td>
+                <td>&lt;END></td>
+                <td></td>
+                </tr>
+                <tr>
+                <td>0x01</td>
+                <td>MD5</td>
+                <td><a href="#Value">Value</a> (either String or Blob)</td>
+                </tr>
+                <tr>
+                <td>0x02</td>
+                <td>SHA1</td>
+                <td><a href="#Value">Value</a> (either String or Blob)</td>
+                </tr>
+                <tr>
+                <td>0x03</td>
+                <td>SHA256</td>
+                <td><a href="#Value">Value</a> (either String or Blob)</td>
+                </tr>
+                <tr>
+                <td>0x04..0x0f</td>
+                <td>reserved</td>
+                <td></td>
+                </tr>
+                <tr>
+                <td>0x10</td>
+                <td>GPG</td>
+                <td><a href="#Value">Value</a> (either String or Blob)</td>
+                </tr>
+                <tr>
+                <td>0x11..0xff</td>
+                <td>reserved</td>
+                <td></td>
+                </tr>
+            </table>
+            </li>
+        </ul>
+    </td>
+    </tr>
+</table>
+<table class="navbar-bottom" align="center">
+    <tr><td class="navbar-bottom"><b>| <a href="index.html">Up</a> |</b></td></tr>
+</table>
+</body>
+</html>

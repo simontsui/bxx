@@ -1,0 +1,198 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<head>
+<title>BXX Builtins</title>
+<link rel="stylesheet" href="notes.css" type="text/css">
+</head>
+<body>
+<table class="top" cellspacing="0" align="center" summary="top">
+    <tr><td class="ruler"></td></tr>
+    <tr><td class="title">BXX Builtins</td></tr>
+    <tr><td class="navbar-top"><b>| <a href="index.html">Up</a>&nbsp;</b></td></tr>
+    <tr><td class="ruler"></td></tr>
+    <tr>
+    <td>
+        <h1>Builtins types</h1>
+        <ul>
+            <li><a name="I64"><span class="term">I64</span></a> , <a name="I32"><span class="term">I32</span></a> , <a
+            name="I16"><span class="term">I16</span></a>, <a name="I8"><span class="term">I8</span></a> are fixed width
+            signed value in a eight, four, two, and one byte respectively.</li>
+            <li><a name="U8"><span class="term">U8</span></a> is fixed width unsigned value in a single byte.</li>
+            <li><a name="V64"><span class="term">V64</span></a> and <a name="V32"><span class="term">V32</span></a> are
+            signed (two's complement) value encoded in <code>1..9</code> bytes. They have same encoding, except only
+            the first 64 or 32 bits are used respectively. Up to four least significant bits of the first (most
+            significant) byte specified the length: 
+            <table class="box">
+                <tr>
+                <th>First (MS) byte</th>
+                <th>Length (range)</th>
+                </tr>
+                <tr>
+                <td class="mono">vvvv:vvv0</td>
+                <td>1 byte (7 bits, ie. -64..63)</td>
+                </tr>
+                <tr>
+                <td class="mono">vvvv:0001</td>
+                <td>2 byte (12 bits)</td>
+                </tr>
+                <tr>
+                <td class="mono">vvvv:0011</td>
+                <td>3 byte (20 bits)</td>
+                </tr>
+                <tr>
+                <td class="mono">vvvv:0101</td>
+                <td>4 byte (28 bits)</td>
+                </tr>
+                <tr>
+                <td class="mono">vvvv:0111</td>
+                <td>5 byte (36 bits, V32 use only the least significant 32 bits)</td>
+                </tr>
+                <tr>
+                <td class="mono">vvvv:1001</td>
+                <td>6 byte (44 bits)</td>
+                </tr>
+                <tr>
+                <td class="mono">vvvv:1011</td>
+                <td>7 byte (52 bits)</td>
+                </tr>
+                <tr>
+                <td class="mono">vvvv:1101</td>
+                <td>8 byte (60 bits)</td>
+                </tr>
+                <tr>
+                <td class="mono">vvvv:1111</td>
+                <td>9 byte (68 bits, V64 use only the least significant 64 bits)</td>
+                </tr>
+            </table>
+            </li>
+            <li><a name="U64"><span class="term">U64</span></a> and <a name="U32"><span class="term">U32</span></a> are
+            unsigned integer value encoded in <code>1..9</code> bytes with at most 64 significant bits. Up to four most
+            significant bits specifies the length: 
+            <table class="box">
+                <tr>
+                <th>First (MS) byte</th>
+                <th>Length (range)</th>
+                </tr>
+                <tr>
+                <td class="mono">0vvv:vvvv</td>
+                <td>1 byte (7 bits, 0x0..0x7f)</td>
+                </tr>
+                <tr>
+                <td class="mono">1000:vvvv</td>
+                <td>2 byte (12 bits)</td>
+                </tr>
+                <tr>
+                <td class="mono">1001:vvvv</td>
+                <td>3 byte (20 bits)</td>
+                </tr>
+                <tr>
+                <td class="mono">1010:vvvv</td>
+                <td>4 byte (28 bits)</td>
+                </tr>
+                <tr>
+                <td class="mono">1011:vvvv</td>
+                <td>5 byte (36 bits, U32 use only the least significant 32 bits)</td>
+                </tr>
+                <tr>
+                <td class="mono">1100:vvvv</td>
+                <td>6 byte (44 bits)</td>
+                </tr>
+                <tr>
+                <td class="mono">1101:vvvv</td>
+                <td>7 byte (52 bits)</td>
+                </tr>
+                <tr>
+                <td class="mono">1110:vvvv</td>
+                <td>8 byte (60 bits)</td>
+                </tr>
+                <tr>
+                <td class="mono">1111:vvvv</td>
+                <td>9 byte (68 bits, U64 use only the least significant 64 bits)</td>
+                </tr>
+            </table>
+            </li>
+            <li><a name="U31"><span class="term">U31</span></a> is unsigned integer value encoded in <code>1..5</code>
+            bytes, typically used for counts. It has same encoding as <a href="#U32">U32</a> except that it use only 31
+            bits and there is a special encoding used to indicate <code>null</code> string, blob and array. Up to four
+            most significant bits specifies the length: 
+            <table class="box">
+                <tr>
+                <th>First (MS) byte</th>
+                <th>Length (range)</th>
+                </tr>
+                <tr>
+                <td class="mono">0vvv:vvvv</td>
+                <td>1 byte (7 bits, 0x0..0x7f)</td>
+                </tr>
+                <tr>
+                <td class="mono">1000:vvvv</td>
+                <td>2 byte (12 bits)</td>
+                </tr>
+                <tr>
+                <td class="mono">1001:vvvv</td>
+                <td>3 byte (20 bits)</td>
+                </tr>
+                <tr>
+                <td class="mono">1010:vvvv</td>
+                <td>4 byte (28 bits)</td>
+                </tr>
+                <tr>
+                <td class="mono">1011:vvvv</td>
+                <td>5 byte (36 bits, U31 use only the least significant 31 bits)</td>
+                </tr>
+                <tr>
+                <td class="mono">
+                    <ul class="noindent">
+                        <li class="mono">1100:vvvv</li>
+                        <li class="mono">1101:vvvv</li>
+                        <li class="mono">1110:vvvv</li>
+                    </ul>
+                </td>
+                <td>(reserved)</td>
+                </tr>
+                <tr>
+                <td class="mono">1111:eeee</td>
+                <td>
+                    <ul class="noindent">
+                        <li class="none">Escape code:</li>
+                        <li class="none"><a name="NullEncoding">0000 = null value</a>, for object types String, Blob
+                        and Array.</li>
+                        <li class="none">0001..1111 reserved.</li>
+                    </ul>
+                </td>
+                </tr>
+            </table>
+            </li>
+            <li><a name="String"><span class="term">String</span></a> is an immediate UTF-8 string:
+<pre>
+U31 count
+U8 utf8[];
+</pre>
+            </li>
+            <li><a name="Blob"><span class="term">Blob</span></a> is an immediate byte[]:
+<pre>
+U31 count
+U8 data[];
+</pre>
+            </li>
+        </ul>
+        <h1>Notes</h1>
+        <ul>
+            <li><code>V64</code>, <code>V32</code> <!-- , <code>U64,</code> <code>U60</code>, <code>U32</code> --> and
+            <code>U31</code> are typically encoded in the minimium number of bytes required to represent a given value.
+            However, it may also be encoded in more bytes than neccessary. For example, it is OK to encode value <code
+            >0x01</code> as <code>U31</code> in up to <code>5</code> bytes, as <code>V32</code> in up to <code>5</code>
+            bytes or as <code>V64</code> in up to <code>9</code> bytes. This allows some values to be encoded with
+            fixed width.</li>
+            <li><code>U64</code> and <code>U32</code> serialize unsigned numbers. However, some languages do not have
+            unsigned data types. In such case, the API would take and return signed numbers of the same number of bits
+            instead. It is up to the client application to properly interprete the bits as unsigned data properly.</li>
+        </ul>
+    </td>
+    </tr>
+</table>
+<table class="navbar-bottom" align="center">
+    <tr><td class="navbar-bottom"><b>| <a href="index.html">Up</a> |</b></td></tr>
+</table>
+</body>
+</html>
